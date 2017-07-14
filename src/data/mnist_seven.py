@@ -39,8 +39,13 @@ class MNISTSeven(object):
         self.trainingSet = []
         self.validationSet = []
         self.testSet = []
+        self.numTrain = numTrain
+        self.numValid = numValid
+        self.numTest = numTest
+        self.oneHot = oneHot
+        self.targetDigit = targetDigit
 
-        self.load(dataPath, numTrain, numValid, numTest, oneHot, targetDigit)
+        self.load(dataPath, self.numTrain, self.numValid, self.numTest, self.oneHot, self.targetDigit)
 
     def load(self, dataPath, numTrain, numValid, numTest, oneHot, targetDigit):
         """Load the data."""
@@ -49,13 +54,29 @@ class MNISTSeven(object):
         data = np.genfromtxt(dataPath, delimiter=",", dtype="uint8")
 
         # The last numTest instances ALWAYS comprise the test set.
-        train, test = data[:numTrain+numValid], data[numTrain+numValid:]
-        shuffle(train)
-
-        train, valid = train[:numTrain], train[numTrain:]
-
-        self.trainingSet = DataSet(train, oneHot, targetDigit)
-        self.validationSet = DataSet(valid, oneHot, targetDigit)
+        #shuffle(data)
+        self.train, test = data[:numTrain+numValid], data[numTrain+numValid:]
         self.testSet = DataSet(test, oneHot, targetDigit)
+        train, valid = self.train[:self.numTrain], self.train[self.numTrain:]
+
+        self.trainingSet = DataSet(train, self.oneHot, self.targetDigit)
+        self.validationSet = DataSet(valid, self.oneHot, self.targetDigit)
+
+        #
+        # train, valid = train[:numTrain], train[numTrain:]
+        #
+        # self.trainingSet = DataSet(train, oneHot, targetDigit)
+        # self.validationSet = DataSet(valid, oneHot, targetDigit)
+        # self.testSet = DataSet(test, oneHot, targetDigit)
 
         print("Data loaded.")
+
+    def myshuffle(self):
+        shuffle(self.train)
+
+        train, valid = self.train[:self.numTrain], self.train[self.numTrain:]
+
+        self.trainingSet = DataSet(train, self.oneHot, self.targetDigit)
+        self.validationSet = DataSet(valid, self.oneHot, self.targetDigit)
+
+

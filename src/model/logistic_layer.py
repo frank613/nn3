@@ -7,6 +7,8 @@ from util.activation_functions import Activation
 from model.layer import Layer
 
 
+
+
 class LogisticLayer(Layer):
     """
     A layer of perceptrons acting as the output layer
@@ -40,8 +42,8 @@ class LogisticLayer(Layer):
         shape of the layer, is also shape of the weight matrix
     """
 
-    def __init__(self, nIn, nOut, weights=None,
-                 activation='softmax', isClassifierLayer=True):
+    def __init__(self, nIn, nOut, learningRate,weights=None,
+                 activation='sigmoid', isClassifierLayer=True):
 
         # Get activation function from string
         # Notice the functional programming paradigms of Python + Numpy
@@ -50,6 +52,7 @@ class LogisticLayer(Layer):
 
         self.nIn = nIn
         self.nOut = nOut
+        self.rate=learningRate
 
         # Adding bias
         self.input = np.ndarray((nIn+1, 1))
@@ -82,9 +85,12 @@ class LogisticLayer(Layer):
         Returns
         -------
         ndarray :
-            a numpy array (1,nOut) containing the output of the layer
+            a numpy array (nOut,1) containing the output of the layer
         """
-        pass
+        self.input[1:,:] = input.T
+        self.output = Activation.sigmoid(np.dot(self.weights,self.input))
+        return self.output
+
 
     def computeDerivative(self, nextDerivatives, nextWeights):
         """
@@ -102,10 +108,15 @@ class LogisticLayer(Layer):
         ndarray :
             a numpy array containing the partial derivatives on this layer
         """
+        temp1=np.dot(nextDerivatives.reshape(nextDerivatives.size,1),nextWeights.reshape(1,nextWeights.size))
+        temp2=(np.sum(temp1,axis=0)).reshape(self.size,1)
+        self.delta=(Activation.sigmoidPrime(self.output))*temp2
+
         pass
 
     def updateWeights(self):
         """
         Update the weights of the layer
         """
-        pass
+        self.weights += self.rate*(np.dot(self.delta,self.input.T))
+

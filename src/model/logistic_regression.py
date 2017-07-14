@@ -7,6 +7,8 @@ import numpy as np
 
 from util.activation_functions import Activation
 from model.classifier import Classifier
+from model.logistic_layer import LogisticLayer
+from data.data_set import DataSet
 
 logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
                     level=logging.DEBUG,
@@ -35,17 +37,18 @@ class LogisticRegression(Classifier):
     epochs : positive int
     """
 
-    def __init__(self, train, valid, test, learningRate=0.01, epochs=50):
+    def __init__(self, data, learningRate=0.01, epochs=50, hiddensize=50):
 
         self.learningRate = learningRate
         self.epochs = epochs
-
-        self.trainingSet = train
-        self.validationSet = valid
-        self.testSet = test
+        self.trainingSet = data.trainingSet
+        self.validationSet = data.validationSet
+        self.testSet = data.testSet
+        self.data=data
+        self.layer=LogisticLayer(data.trainingSet.input.shape[1],hiddensize,learningRate)
 
         # Initialize the weight vector with small values
-        self.weight = 0.01*np.random.randn(self.trainingSet.input.shape[1])
+        self.weight = 0.01*np.random.randn(self.layer.size)
 
     def train(self, verbose=True):
         """Train the Logistic Regression.
@@ -63,27 +66,40 @@ class LogisticRegression(Classifier):
         iteration = 0
 
         while not learned:
-            grad = 0
+
+            self.shuffle()
+
             totalError = 0
+
             for input, label in zip(self.trainingSet.input,
                                     self.trainingSet.label):
-                output = self.fire(input)
-                # compute gradient
-                grad += -(label - output)*input
+                # feedforward
+                inputarray = input.reshape(1,len(input))
+                layeroutput = self.layer.forward(inputarray)
+                output = self.fire(layeroutput)
+                # compute gradient of regression
+                delta=label - output
+                grad =delta * self.layer.output
+                # backpropagation
+                self.layer.computeDerivative(delta,self.weight)
+                #update all weights
+                self.updateWeights(grad)
+                self.layer.updateWeights()
 
-                # compute recognizing error, not BCE
+            # compute recognizing error, not BCE using validation data
+            for input, label in zip(self.validationSet.input,
+                                    self.validationSet.label):
                 predictedLabel = self.classify(input)
                 error = loss.calculateError(label, predictedLabel)
                 totalError += error
 
-            self.updateWeights(grad)
             totalError = abs(totalError)
-            
+
             iteration += 1
 
             if verbose:
                 logging.info("Epoch: %i; Error: %i", iteration, totalError)
-                
+
 
             if totalError == 0 or iteration >= self.epochs:
                 # stop criteria is reached
@@ -101,7 +117,10 @@ class LogisticRegression(Classifier):
         bool :
             True if the testInstance is recognized as a 7, False otherwise.
         """
-        return self.fire(testInstance) > 0.5
+        # feedforward
+        testInstance=testInstance.reshape(1,len(testInstance))
+        output = self.fire(self.layer.forward(testInstance))
+        return output > 0.5
 
     def evaluate(self, test=None):
         """Evaluate a whole dataset.
@@ -118,12 +137,19 @@ class LogisticRegression(Classifier):
         """
         if test is None:
             test = self.testSet.input
-        # Once you can classify an instance, just use map for all of the test
+        # Once you can classify an instance, just se map for all of the test
         # set.
         return list(map(self.classify, test))
 
     def updateWeights(self, grad):
-        self.weight -= self.learningRate*grad
+        self.weight += (self.learningRate*grad).reshape(self.weight.size)
 
     def fire(self, input):
-        return Activation.sigmoid(np.dot(np.array(input), self.weight))
+        # input (n,1)
+        return Activation.sigmoid(np.dot(self.weight,input))
+
+    def shuffle(self):
+        self.data.myshuffle()
+        self.trainingSet=self.data.trainingSet
+        self.validationSet=self.data.validationSet
+        self.testSet=self.data.testSet
